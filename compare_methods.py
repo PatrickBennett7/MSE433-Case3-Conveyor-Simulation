@@ -35,7 +35,6 @@ Why FIFO tote sequencing often causes flawed runs:
 """
 
 import pandas as pd
-import numpy as np
 from collections import deque, Counter
 import copy
 import os
@@ -105,7 +104,7 @@ def run_fifo_notebook_and_load_results(script_dir, data_dir):
         return None, None, None
     try:
         subprocess.run(
-            [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', nb_path],
+            [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', "--ExecutePreprocessor.kernel_name=venv_m3", nb_path],
             cwd=script_dir,
             check=True,
             capture_output=True,
@@ -114,6 +113,7 @@ def run_fifo_notebook_and_load_results(script_dir, data_dir):
     except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
         print(f"  Warning: could not run simulation_just_FIFO.ipynb: {e}")
         return None, None, None
+    
     summary_path = os.path.join(data_dir, 'simulation_just_FIFO_summary.csv')
     times_path = os.path.join(data_dir, 'simulation_just_FIFO_order_times.csv')
     conveyor_path = os.path.join(data_dir, 'simulation_just_FIFO_order_conveyor.csv')
@@ -381,7 +381,7 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
 # ---------------------------------------------------------------------------
 # Main: run all combinations and write outputs
 # ---------------------------------------------------------------------------
-def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', comparison_dir='Data/comparison'):
+def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', comparison_dir='Data/comparison', rep_num: int=1):
     os.makedirs(comparison_dir, exist_ok=True)
     orders_queue, totes_queue = load_data(raw_data_dir)
 
@@ -423,6 +423,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
             'tote_sequence': str(summary_row.get('tote_sequence', '[]')),
             'item_sequence': str(summary_row.get('item_sequence', '[]')),
             'item_sequence_length': int(summary_row.get('item_sequence_length', 0)),
+            'replication': rep_num,
         })
         for e in fifo_order_times:
             order_times_rows.append({
@@ -431,6 +432,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                 'order_num': int(e.get('order_num', 0)),
                 'completion_time': float(e.get('completion_time', e.get('time', 0))),
                 'conveyor': int(e.get('conveyor', 0)),
+                'replication': rep_num,
             })
         for row in fifo_order_conveyor:
             order_conveyor_rows.append({
@@ -438,6 +440,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                 'run_label': run_label,
                 'order_num': int(row.get('order_num', 0)),
                 'conveyor': int(row.get('conveyor', 0)),
+                'replication': rep_num,
             })
     else:
         print("  Skipped (notebook not run or result files missing).")
@@ -475,6 +478,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                     'tote_sequence': str(result['loaded_totes']),
                     'item_sequence': str(result['loaded_item_sequence']),
                     'item_sequence_length': len(result['loaded_item_sequence']),
+                    'replication': rep_num,
                 })
                 for e in result['completed_orders_log']:
                     order_times_rows.append({
@@ -483,6 +487,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                         'order_num': e['order_num'],
                         'completion_time': e['time'],
                         'conveyor': e['conveyor'],
+                        'replication': rep_num,
                     })
                 for order_num, conv in result['order_assignment'].items():
                     order_conveyor_rows.append({
@@ -490,6 +495,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                         'run_label': run_label,
                         'order_num': order_num,
                         'conveyor': conv,
+                        'replication': rep_num,
                     })
 
     summary_df = pd.DataFrame(summary_rows)
@@ -524,6 +530,8 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
 
 
 if __name__ == '__main__':
+    rep_num = int(os.environ.get('REPLICATION', 1))
+
     raw_dir = os.environ.get('DATA_RAW_DIR', 'Data/raw')
     order_dir = os.environ.get('DATA_ORDER_SEQUENCING_DIR', 'Data/order_sequencing')
     comp_dir = os.environ.get('DATA_COMPARISON_DIR', 'Data/comparison')
@@ -531,4 +539,5 @@ if __name__ == '__main__':
         raw_data_dir=raw_dir,
         order_sequencing_dir=order_dir,
         comparison_dir=comp_dir,
+        rep_num=rep_num,
     )
