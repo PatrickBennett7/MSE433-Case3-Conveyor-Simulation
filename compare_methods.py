@@ -136,7 +136,7 @@ def run_fifo_notebook_and_load_results(script_dir, data_dir):
 # ---------------------------------------------------------------------------
 def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tote_order, verbose=False):
     num_conveyors = 4
-    conveyor_time = 1.0
+    conveyor_time = 7.5
     CONVEYOR_WEIGHTS = {1: 4, 2: 3, 3: 2, 4: 1}
 
     # Match solution rows to orders by shape vector (solution CSV is ordered by conveyor then sequence, not by order number)
