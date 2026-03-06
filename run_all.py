@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Run the full pipeline in order:
   1. Data generator (MSE433_M3_data_generator.ipynb)  -> writes Data/raw/
@@ -21,14 +20,23 @@ import os
 import sys
 import subprocess
 
+
+KERNEL_NAME = "venv_m3"
+REPLICATIONS = 1
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_RAW = os.path.join(SCRIPT_DIR, 'Data', 'raw')
 DATA_ORDER_SEQUENCING = os.path.join(SCRIPT_DIR, 'Data', 'order_sequencing')
 DATA_COMPARISON = os.path.join(SCRIPT_DIR, 'Data', 'comparison')
 
 
-def run_notebook(nb_name):
-    """Execute a Jupyter notebook with nbconvert. Returns True on success."""
+def run_notebook(nb_name: str):
+    """
+    Execute a Jupyter notebook with nbconvert. Returns True on success.
+
+    Args:
+        nb_name: notebook filepath
+    """
     nb_path = os.path.join(SCRIPT_DIR, nb_name)
     if not os.path.isfile(nb_path):
         print(f"  Skip: {nb_name} not found.")
@@ -36,7 +44,7 @@ def run_notebook(nb_name):
     print(f"  Running {nb_name} ...")
     try:
         subprocess.run(
-            [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', nb_path],
+            [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', "--ExecutePreprocessor.kernel_name=venv_m3", nb_path],
             cwd=SCRIPT_DIR,
             check=True,
             capture_output=True,
@@ -57,10 +65,17 @@ def run_notebook(nb_name):
         return False
 
 
-def main():
+def run_one_replication(rep_num: int, env):
+    """
+    Args:
+        rep_num: the replication number
+    """
     print("=" * 70)
     print("Pipeline: Data generator -> Order sequencing -> FIFO simulation -> Comparison")
     print("=" * 70)
+
+    # Update replication number
+    env['REPLICATION_NUM'] = str(rep)
 
     # Create folder layout
     for d in (DATA_RAW, DATA_ORDER_SEQUENCING, DATA_COMPARISON):
@@ -86,14 +101,13 @@ def main():
 
     # 4. Comparison (run in subprocess with 'python' from PATH so conda/env with pandas is used)
     print("\n[4/4] Comparison (compare_methods.py) -> Data/comparison/")
-    env = os.environ.copy()
     env['DATA_RAW_DIR'] = DATA_RAW
     env['DATA_ORDER_SEQUENCING_DIR'] = DATA_ORDER_SEQUENCING
     env['DATA_COMPARISON_DIR'] = DATA_COMPARISON
     compare_script = os.path.join(SCRIPT_DIR, 'compare_methods.py')
     try:
         r = subprocess.run(
-            ['python', compare_script],
+            [sys.executable, compare_script],
             cwd=SCRIPT_DIR,
             env=env,
         )
@@ -112,5 +126,10 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
-    sys.exit(main())
+if __name__ == '__main__':    
+    env = os.environ.copy()
+    env['KERNEL'] = KERNEL_NAME
+
+    for rep in range(1, REPLICATIONS+1):
+        run_one_replication(rep, env)
+    sys.exit()
