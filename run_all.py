@@ -18,30 +18,69 @@ Avoid using a full path to a different Python (e.g. /opt/homebrew/bin/python3.11
 
 import os
 import sys
+import time
 import subprocess
 
 
+# The name of the .venv registered as a Jupyter kernel
 KERNEL_NAME = "venv_m3"
-REPLICATIONS = 1
 
+# Run configuration, modify as needed
+REPLICATIONS = 25
+FORCE_REGEN = False     # True = Re-run the raw-data generator
+CLEAR_OUTPUTS = True   # True = wipe prior comparison outputs (Data/comparison/*.csv) during run setup
+
+# Global vars (do not change unless necessary)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_RAW = os.path.join(SCRIPT_DIR, 'Data', 'raw')
 DATA_ORDER_SEQUENCING = os.path.join(SCRIPT_DIR, 'Data', 'order_sequencing')
 DATA_COMPARISON = os.path.join(SCRIPT_DIR, 'Data', 'comparison')
 
 
-def run_notebook(nb_name: str):
-    """
-    Execute a Jupyter notebook with nbconvert. Returns True on success.
+def run_python_file(base_name: str):
+    """Run either a .py script or a .ipynb notebook, preferring .py if available.
 
     Args:
-        nb_name: notebook filepath
+        base_name: script/notebook base name (without extension) relative to SCRIPT_DIR.
+
+    Returns:
+        True if execution succeeded; False otherwise.
     """
-    nb_path = os.path.join(SCRIPT_DIR, nb_name)
+
+    py_path = os.path.join(SCRIPT_DIR, base_name + '.py')
+    nb_path = os.path.join(SCRIPT_DIR, base_name + '.ipynb')
+
+    # Prefer a standalone .py script when available
+    if os.path.isfile(py_path):
+        print(f"  Running {os.path.basename(py_path)} ...")
+        try:
+            subprocess.run(
+                [sys.executable, py_path],
+                cwd=SCRIPT_DIR,
+                check=True,
+                capture_output=True,
+                timeout=300,
+            )
+            print(f"  Done: {os.path.basename(py_path)}")
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"  Error running {os.path.basename(py_path)}: {e}")
+            if e.stderr:
+                print(e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr)
+            return False
+        except FileNotFoundError:
+            print("  Error: python not found. Run with the Python that has pandas installed.")
+            return False
+        except subprocess.TimeoutExpired:
+            print(f"  Error: {os.path.basename(py_path)} timed out.")
+            return False
+
+    # Otherwise try notebook
     if not os.path.isfile(nb_path):
-        print(f"  Skip: {nb_name} not found.")
+        print(f"  Skip: {base_name}.ipynb not found.")
         return False
-    print(f"  Running {nb_name} ...")
+
+    print(f"  Running {os.path.basename(nb_path)} ...")
     try:
         subprocess.run(
             [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', "--ExecutePreprocessor.kernel_name=venv_m3", nb_path],
@@ -50,10 +89,10 @@ def run_notebook(nb_name: str):
             capture_output=True,
             timeout=300,
         )
-        print(f"  Done: {nb_name}")
+        print(f"  Done: {os.path.basename(nb_path)}")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"  Error running {nb_name}: {e}")
+        print(f"  Error running {os.path.basename(nb_path)}: {e}")
         if e.stderr:
             print(e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr)
         return False
@@ -61,75 +100,119 @@ def run_notebook(nb_name: str):
         print("  Error: jupyter not found. Install with: pip install jupyter nbconvert")
         return False
     except subprocess.TimeoutExpired:
-        print(f"  Error: {nb_name} timed out.")
+        print(f"  Error: {os.path.basename(nb_path)} timed out.")
         return False
 
 
-def run_one_replication(rep_num: int, env):
-    """
-    Args:
-        rep_num: the replication number
-    """
-    print("=" * 70)
-    print("Pipeline: Data generator -> Order sequencing -> FIFO simulation -> Comparison")
-    print("=" * 70)
+def setup_pipeline(force_regen: bool = False, clear_outputs: bool = True):
+    """Set up the directory layout and generate required input data.
 
-    # Update replication number
-    env['REPLICATION_NUM'] = str(rep)
+    This is intended to run once per workspace, then multiple replications can
+    be executed without re-running the data generator or order sequencing.
+
+    If clear_outputs is True, remove existing CSV outputs in Data/comparison/
+    """
+
+    print("=" * 70)
+    print("Setup: Data generator + Order sequencing")
+    print("=" * 70)
 
     # Create folder layout
     for d in (DATA_RAW, DATA_ORDER_SEQUENCING, DATA_COMPARISON):
         os.makedirs(d, exist_ok=True)
         print(f"  Using {d}")
 
+    if clear_outputs:
+        print("\n[0/2] Clearing prior outputs from Data/comparison/")
+        for fname in os.listdir(DATA_COMPARISON):
+            if fname.lower().endswith('.csv'):
+                path = os.path.join(DATA_COMPARISON, fname)
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+
     # 1. Data generator
-    print("\n[1/4] Data generator (MSE433_M3_data_generator.ipynb) -> Data/raw/")
-    if not run_notebook('MSE433_M3_data_generator.ipynb'):
-        print("  Pipeline stopped: data generator failed.")
-        return 1
+    print("\n[1/2] Data generator (MSE433_M3_data_generator.*) -> Data/raw/")
+    existing_raw = all(os.path.isfile(os.path.join(DATA_RAW, fn)) for fn in (
+        'order_itemtypes.csv',
+        'order_quantities.csv',
+        'orders_totes.csv',
+    ))
+    if existing_raw and not force_regen:
+        print('  Skipping data generator (raw data already exists). Set FORCE_DATA_GENERATION=1 to re-run.')
+    else:
+        if not run_python_file('MSE433_M3_data_generator'):
+            print("  Setup stopped: data generator failed.")
+            return False
 
     # 2. Order sequencing
-    print("\n[2/4] Order sequencing (order_sequence.ipynb) -> Data/order_sequencing/")
-    if not run_notebook('order_sequence.ipynb'):
-        print("  Pipeline stopped: order sequencing failed.")
-        return 1
+    print("\n[2/2] Order sequencing (order_sequence.*) -> Data/order_sequencing/")
+    if not run_python_file('order_sequence'):
+        print("  Setup stopped: order sequencing failed.")
+        return False
 
-    # 3. FIFO simulation
-    print("\n[3/4] FIFO simulation (simulation_just_FIFO.ipynb) -> Data/comparison/")
-    if not run_notebook('simulation_just_FIFO.ipynb'):
-        print("  Warning: FIFO simulation failed; comparison will skip run_id=1.")
+    return True
 
-    # 4. Comparison (run in subprocess with 'python' from PATH so conda/env with pandas is used)
-    print("\n[4/4] Comparison (compare_methods.py) -> Data/comparison/")
+
+def run_replication(rep_num: int, env):
+    """Run the simulation & comparison steps for a single replication."""
+    print("\n" + "=" * 70)
+    print(f"Replication {rep_num}: FIFO simulation -> Comparison")
+    print("=" * 70)
+
+    env['REPLICATION_NUM'] = str(rep_num)
     env['DATA_RAW_DIR'] = DATA_RAW
     env['DATA_ORDER_SEQUENCING_DIR'] = DATA_ORDER_SEQUENCING
     env['DATA_COMPARISON_DIR'] = DATA_COMPARISON
+
+    # 3. FIFO simulation
+    print("\n[1/2] FIFO simulation (simulation_just_FIFO.*) -> Data/comparison/")
+    t0 = time.perf_counter()
+    fifo_ok = run_python_file('simulation_just_FIFO')
+    t1 = time.perf_counter()
+    print(f"  Step time: {t1 - t0:.3f}s")
+    if not fifo_ok:
+        print("  Warning: FIFO simulation failed; comparison will skip run_id=1.")
+
+    # 4. Comparison
+    print("\n[2/2] Comparison (compare_methods.py) -> Data/comparison/")
     compare_script = os.path.join(SCRIPT_DIR, 'compare_methods.py')
+    t0 = time.perf_counter()
     try:
         r = subprocess.run(
             [sys.executable, compare_script],
             cwd=SCRIPT_DIR,
             env=env,
         )
+        t1 = time.perf_counter()
+        print(f"  Step time: {t1 - t0:.3f}s")
         if r.returncode != 0:
             print(f"  Error: compare_methods.py exited with code {r.returncode}")
-            return 1
+            return False
     except FileNotFoundError:
+        t1 = time.perf_counter()
+        print(f"  Step time: {t1 - t0:.3f}s")
         print("  Error: 'python' not found in PATH, or pandas missing in that Python.")
         print("  Run from conda base and use:  python run_all.py   (no full path to python)")
-        return 1
+        return False
 
     print("\n" + "=" * 70)
-    print("Pipeline complete. Outputs in Data/comparison/")
+    print("Replication complete. Outputs in Data/comparison/")
     print("  comparison_summary.csv, comparison_order_times.csv, comparison_order_conveyor.csv")
     print("=" * 70)
-    return 0
+    return True
 
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
+
+    if not setup_pipeline(force_regen=FORCE_REGEN, clear_outputs=CLEAR_OUTPUTS):
+        sys.exit(1)
+
     env = os.environ.copy()
     env['KERNEL'] = KERNEL_NAME
 
-    for rep in range(1, REPLICATIONS+1):
-        run_one_replication(rep, env)
-    sys.exit()
+    for rep in range(1, REPLICATIONS + 1):
+        if not run_replication(rep, env):
+            sys.exit(1)
+    sys.exit(0)
