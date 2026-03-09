@@ -7,7 +7,7 @@
 - Jupyter extension in VSCode (if needed)
 
 ### Dev Setup (One-Time)
-1. Create venv
+1. In root, create venv
 
     ```bash
     python -m venv .venv
@@ -20,7 +20,7 @@
     source .venv/bin/activate
 
     # For Windows:
-    .\.venv\Scripts\activate
+    .venv\Scripts\Activate
     ```
 
 3. Install requirements
@@ -38,11 +38,11 @@
     Note: this can be removed anytime through the command `jupyter kernelspec uninstall venv_m3`
 
 ### Run the Program
-1. Activate your .venv if you haven't already
+1. Activate your .venv if you haven't already.
 2. Configure the variables at the top of the `run_all.py` file as desired.
 
     ```py
-    # Modify as needed:
+    # Modify as needed. E.g.:
     REPLICATIONS = 25
     FORCE_REGEN = False   # True = Re-run the raw-data generator
     CLEAR_OUTPUTS = True  # True = wipe prior comparison outputs) during run setup
