@@ -35,12 +35,24 @@ Why FIFO tote sequencing often causes flawed runs:
 """
 
 import pandas as pd
-import numpy as np
-from collections import deque, Counter
+from collections import deque, Counter, defaultdict
 import copy
 import os
 import sys
 import subprocess
+
+
+# Number of distinct item types used by the order sequencing / solution CSVs.
+TYPE_COUNT = 8
+
+# Default shape columns
+DEFAULT_SHAPE_COLS = ['circle', 'pentagon', 'trapezoid', 'triangle', 'star', 'moon', 'heart', 'cross']
+if TYPE_COUNT != len(DEFAULT_SHAPE_COLS):
+    print(f"The type count, {TYPE_COUNT}, does not match number of shape columns, {DEFAULT_SHAPE_COLS}")
+    sys.exit()
+    # SHAPE_COLS = DEFAULT_SHAPE_COLS[:TYPE_COUNT]
+else:
+    SHAPE_COLS = DEFAULT_SHAPE_COLS + [f'type_{i}' for i in range(len(DEFAULT_SHAPE_COLS), TYPE_COUNT)]
 
 # ---------------------------------------------------------------------------
 # Data loading (same as simulate_conveyor.ipynb)
@@ -74,7 +86,9 @@ def load_data(data_dir='Data'):
                 totes_dict[tote] = []
             totes_dict[tote].append({'item': item, 'qty': qty})
         if order_items:
-            orders_queue.append({'order_num': order_num + 1, 'items': order_items})
+            order = {'order_num': order_num + 1, 'items': order_items}
+            order['shape'] = _order_to_shape_tuple(order)
+            orders_queue.append(order)
 
     totes_queue = [{'tote_id': tid, 'items': totes_dict[tid]} for tid in sorted(totes_dict.keys())]
     return orders_queue, totes_queue
@@ -85,12 +99,15 @@ SHAPE_COLS = ['circle', 'pentagon', 'trapezoid', 'triangle', 'star', 'moon', 'he
 
 
 def _order_to_shape_tuple(order):
-    """Build (qty per item type 0..7) for one order. Sum by type to match solution CSV (same as order_sequence.ipynb order_to_shape_row)."""
-    row = [0] * 8
+    """Build (qty per item type 0..TYPE_COUNT-1) for one order.
+
+    This is used to match orders to the solution CSV rows.
+    """
+    row = [0] * TYPE_COUNT
     for it in order['items']:
         item_type = int(it['item'])
         qty = int(it.get('qty', 1))
-        if 0 <= item_type < 8:
+        if 0 <= item_type < TYPE_COUNT:
             row[item_type] += qty
     return tuple(row)
 
@@ -99,26 +116,47 @@ def _order_to_shape_tuple(order):
 # Run simulation_just_FIFO.ipynb once and read its result CSVs for run_id=1
 # ---------------------------------------------------------------------------
 def run_fifo_notebook_and_load_results(script_dir, data_dir):
-    """Execute simulation_just_FIFO.ipynb and return (summary_row dict, order_times list, order_conveyor list) or (None, None, None) on failure."""
+    """Run the FIFO simulation and return (summary_row, order_times, order_conveyor) or (None, None, None).
+
+    Prefer a Python script (.py) if present; otherwise fall back to executing the notebook (.ipynb).
+    """
+    py_path = os.path.join(script_dir, 'simulation_just_FIFO.py')
     nb_path = os.path.join(script_dir, 'simulation_just_FIFO.ipynb')
-    if not os.path.isfile(nb_path):
+
+    if os.path.isfile(py_path):
+        print("  Running simulation_just_FIFO.py")
+        try:
+            subprocess.run(
+                [sys.executable, py_path],
+                cwd=script_dir,
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+            print(f"  Warning: could not run simulation_just_FIFO.py: {e}")
+            return None, None, None
+    elif os.path.isfile(nb_path):
+        print("  Running simulation_just_FIFO.ipynb")
+        try:
+            subprocess.run(
+                [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', "--ExecutePreprocessor.kernel_name=venv_m3", nb_path],
+                cwd=script_dir,
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
+            print(f"  Warning: could not run simulation_just_FIFO.ipynb: {e}")
+            return None, None, None
+    else:
         return None, None, None
-    try:
-        subprocess.run(
-            [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', nb_path],
-            cwd=script_dir,
-            check=True,
-            capture_output=True,
-            timeout=120,
-        )
-    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
-        print(f"  Warning: could not run simulation_just_FIFO.ipynb: {e}")
-        return None, None, None
+
     summary_path = os.path.join(data_dir, 'simulation_just_FIFO_summary.csv')
     times_path = os.path.join(data_dir, 'simulation_just_FIFO_order_times.csv')
     conveyor_path = os.path.join(data_dir, 'simulation_just_FIFO_order_conveyor.csv')
     if not os.path.isfile(summary_path):
-        print(f"  Warning: {summary_path} not found after running notebook.")
+        print(f"  Warning: {summary_path} not found after running simulation.")
         return None, None, None
     try:
         summary_df = pd.read_csv(summary_path)
@@ -141,32 +179,33 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
 
     # Match solution rows to orders by shape vector (solution CSV is ordered by conveyor then sequence, not by order number)
     conveyor_order_queues = {i: deque() for i in range(1, num_conveyors + 1)}
-    unmatched_orders = list(orders_queue)  # copy; we'll remove as we match
+    shape_to_orders = defaultdict(deque)
+    for order in orders_queue:
+        shape = order.get('shape') or _order_to_shape_tuple(order)
+        shape_to_orders[shape].append(order)
+
     for idx, row in solution_df.iterrows():
         row_shape = tuple(int(row[col]) for col in SHAPE_COLS)
         conv_num = int(row['conv_num'])
         # Find an order with this exact shape vector (one-to-one match)
-        match_idx = None
-        for i, order in enumerate(unmatched_orders):
-            if _order_to_shape_tuple(order) == row_shape:
-                match_idx = i
-                break
-        if match_idx is None:
+        if not shape_to_orders.get(row_shape):
             continue  # no matching order (data mismatch); skip this row
-        order = unmatched_orders.pop(match_idx)
+        order = shape_to_orders[row_shape].popleft()
         order_num = order['order_num']
         items_list = []
-        remaining_list = []
+        remaining = Counter()
         for item_info in order['items']:
             item = item_info['item']
             qty = int(item_info['qty'])
             tote_id = int(item_info.get('tote', 0)) if item_info.get('tote') is not None else 0
             for _ in range(qty):
                 items_list.append(item)
-                remaining_list.append((item, tote_id))
+                remaining[(item, tote_id)] += 1
         conveyor_order_queues[conv_num].append({
-            'order_num': order_num, 'items': items_list.copy(),
-            'remaining': remaining_list.copy(), 'fulfilled': []
+            'order_num': order_num,
+            'items': items_list.copy(),
+            'remaining': remaining,
+            'fulfilled': []
         })
 
     total_matched = sum(len(conveyor_order_queues[c]) for c in range(1, num_conveyors + 1))
@@ -196,6 +235,7 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
 
     # Tote/item helpers
     def _active_need_counts():
+        # Active needs across all conveyors (multiset of (item, tote) pairs)
         need = Counter()
         for c in range(1, num_conveyors + 1):
             if orders[c]['order_num'] is None:
@@ -212,6 +252,7 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
         return score
 
     def _active_need_per_conveyor():
+        # Returns a dict mapping conveyor -> Counter of (item, tote) remaining
         return {c: Counter(orders[c]['remaining']) if orders[c]['order_num'] else Counter()
                 for c in range(1, num_conveyors + 1)}
 
@@ -261,10 +302,11 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
                 if orders_ref[c]['order_num'] is None:
                     continue
                 rem = orders_ref[c]['remaining']
-                if (item, t) not in rem:
+                if rem.get((item, t), 0) == 0:
                     continue
+                remaining_count = sum(rem.values())
                 if best_conv is None or c < best_conv:
-                    best_conv, best_remaining = c, len(rem)
+                    best_conv, best_remaining = c, remaining_count
             if best_conv is None:
                 return 9999
             is_last = (best_remaining == 1)
@@ -281,14 +323,16 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
                 continue
             item_type, tote_id = slot_content
             pair = (item_type, tote_id)
-            if pair not in orders[conveyor_idx]['remaining']:
+            if orders[conveyor_idx]['remaining'].get(pair, 0) == 0:
                 continue
             current_order_num = orders[conveyor_idx]['order_num']
             conveyors[conveyor_idx][1] = None
-            orders[conveyor_idx]['remaining'].remove(pair)
+            orders[conveyor_idx]['remaining'][pair] -= 1
+            if orders[conveyor_idx]['remaining'][pair] <= 0:
+                del orders[conveyor_idx]['remaining'][pair]
             orders[conveyor_idx]['fulfilled'].append(pair)
             items_removed.append((conveyor_idx, item_type, current_order_num))
-            if len(orders[conveyor_idx]['remaining']) == 0:
+            if sum(orders[conveyor_idx]['remaining'].values()) == 0:
                 completed_order_num = current_order_num
                 assign_next_order_to_conveyor(conveyor_idx)
                 orders_completed.append((conveyor_idx, completed_order_num))
@@ -349,12 +393,28 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
 
     # Fixed step cap: if a combination can't complete all orders before this, it's a flaw in that algorithm combo (items stuck on belt, no space to load more, etc.)
     max_steps = total_items * 8
+    # If we go many steps without loading or removing anything, it indicates a stuck run.
+    stagnant_steps = 0
+    stagnant_threshold = min(max_steps, max(100, total_items * 2))
+
     for _ in range(max_steps):
-        item_counter = simulate_step(len(loaded_item_sequence), total_items)
+        prev_loaded_count = len(loaded_item_sequence)
+        item_counter = simulate_step(prev_loaded_count, total_items)
         time += conveyor_time / 2
         items_removed, orders_completed = scan_and_remove()
         for conv_id, completed_order_num in orders_completed:
             completed_orders_log.append({'order_num': completed_order_num, 'time': time, 'conveyor': conv_id})
+
+        # Detect lack of progress: no new items loaded and no items removed.
+        if len(loaded_item_sequence) == prev_loaded_count and not items_removed:
+            stagnant_steps += 1
+        else:
+            stagnant_steps = 0
+
+        if stagnant_steps >= stagnant_threshold:
+            # Stuck: belt has items that do not match any active order, or orders are blocked.
+            break
+
         all_queues_empty = all(len(conveyor_order_queues[c]) == 0 for c in range(1, num_conveyors + 1))
         all_done = all(orders[c]['order_num'] is None or len(orders[c]['remaining']) == 0 for c in range(1, num_conveyors + 1))
         belt_empty = all(conveyors[c][0] is None and conveyors[c][1] is None for c in range(1, num_conveyors + 1))
@@ -381,7 +441,7 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
 # ---------------------------------------------------------------------------
 # Main: run all combinations and write outputs
 # ---------------------------------------------------------------------------
-def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', comparison_dir='Data/comparison'):
+def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', comparison_dir='Data/comparison', rep_num: int=1):
     os.makedirs(comparison_dir, exist_ok=True)
     orders_queue, totes_queue = load_data(raw_data_dir)
 
@@ -403,7 +463,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Run simulation_just_FIFO.ipynb once and merge its results as run_id=1
-    print("Run 1: simulation_just_FIFO.ipynb (FIFO orders, totes, items)")
+    print("Run 1: simulation_just_FIFO.py/.ipynb (FIFO orders, totes, items)")
     summary_row, fifo_order_times, fifo_order_conveyor = run_fifo_notebook_and_load_results(script_dir, comparison_dir)
     if summary_row is not None:
         run_id = 1
@@ -423,6 +483,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
             'tote_sequence': str(summary_row.get('tote_sequence', '[]')),
             'item_sequence': str(summary_row.get('item_sequence', '[]')),
             'item_sequence_length': int(summary_row.get('item_sequence_length', 0)),
+            'replication': rep_num,
         })
         for e in fifo_order_times:
             order_times_rows.append({
@@ -431,6 +492,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                 'order_num': int(e.get('order_num', 0)),
                 'completion_time': float(e.get('completion_time', e.get('time', 0))),
                 'conveyor': int(e.get('conveyor', 0)),
+                'replication': rep_num,
             })
         for row in fifo_order_conveyor:
             order_conveyor_rows.append({
@@ -438,6 +500,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                 'run_label': run_label,
                 'order_num': int(row.get('order_num', 0)),
                 'conveyor': int(row.get('conveyor', 0)),
+                'replication': rep_num,
             })
     else:
         print("  Skipped (notebook not run or result files missing).")
@@ -475,6 +538,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                     'tote_sequence': str(result['loaded_totes']),
                     'item_sequence': str(result['loaded_item_sequence']),
                     'item_sequence_length': len(result['loaded_item_sequence']),
+                    'replication': rep_num,
                 })
                 for e in result['completed_orders_log']:
                     order_times_rows.append({
@@ -483,6 +547,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                         'order_num': e['order_num'],
                         'completion_time': e['time'],
                         'conveyor': e['conveyor'],
+                        'replication': rep_num,
                     })
                 for order_num, conv in result['order_assignment'].items():
                     order_conveyor_rows.append({
@@ -490,6 +555,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
                         'run_label': run_label,
                         'order_num': order_num,
                         'conveyor': conv,
+                        'replication': rep_num,
                     })
 
     summary_df = pd.DataFrame(summary_rows)
@@ -500,9 +566,20 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
     times_path = os.path.join(comparison_dir, 'comparison_order_times.csv')
     conveyor_path = os.path.join(comparison_dir, 'comparison_order_conveyor.csv')
 
-    summary_df.to_csv(summary_path, index=False)
-    order_times_df.to_csv(times_path, index=False)
-    order_conveyor_df.to_csv(conveyor_path, index=False)
+    def _append_or_write(path, df):
+        # Append if file exists; otherwise create fresh.
+        if os.path.isfile(path):
+            try:
+                existing = pd.read_csv(path)
+                df = pd.concat([existing, df], ignore_index=True)
+            except Exception:
+                # If reading fails, overwrite to avoid blocking the pipeline.
+                pass
+        df.to_csv(path, index=False)
+
+    _append_or_write(summary_path, summary_df)
+    _append_or_write(times_path, order_times_df)
+    _append_or_write(conveyor_path, order_conveyor_df)
 
     print("\n" + "=" * 70)
     print("Comparison complete.")
@@ -524,6 +601,8 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
 
 
 if __name__ == '__main__':
+    rep_num = int(os.environ.get('REPLICATION_NUM', 1))
+
     raw_dir = os.environ.get('DATA_RAW_DIR', 'Data/raw')
     order_dir = os.environ.get('DATA_ORDER_SEQUENCING_DIR', 'Data/order_sequencing')
     comp_dir = os.environ.get('DATA_COMPARISON_DIR', 'Data/comparison')
@@ -531,4 +610,5 @@ if __name__ == '__main__':
         raw_data_dir=raw_dir,
         order_sequencing_dir=order_dir,
         comparison_dir=comp_dir,
+        rep_num=rep_num,
     )
