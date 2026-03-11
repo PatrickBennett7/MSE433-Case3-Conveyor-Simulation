@@ -4,6 +4,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 import subprocess
 import time
+import os
+import pathlib
 
 # --- Page Config ---
 st.set_page_config(page_title="Conveyor Simulation Dashboard", layout="wide")
@@ -155,9 +157,12 @@ ORDER_COLORS = px.colors.qualitative.Set2
 # ═════════════════════════════════════════════════════════════════════════════
 if st.button("Run Simulation", type="primary", use_container_width=False):
     try:
+        info_message = st.info("Simulation is running. Please wait...")
         with st.spinner("Running simulation…"):
             subprocess.run(["python", "run_all.py"], check=True)
             st.success("Simulation completed successfully!")
+        info_message.empty()  # Remove the "Simulation is running" message
+
         time.sleep(1)
 
         comparison_summary  = pd.read_csv("Data/comparison/comparison_summary.csv")
@@ -165,65 +170,77 @@ if st.button("Run Simulation", type="primary", use_container_width=False):
         order_conveyor      = pd.read_csv("Data/comparison/comparison_order_conveyor.csv")
         solution_output     = pd.read_csv("Data/comparison/solution_output.csv")
 
+        # Filter comparison_summary to only include rows where flawed_run is False and all_orders_completed is True
+        comparison_summary = comparison_summary[(comparison_summary["flawed_run"] == False) & (comparison_summary["all_orders_completed"] == True)]
+
         st.session_state["comparison_summary"] = comparison_summary
         st.session_state["order_times"]        = order_times
         st.session_state["order_conveyor"]     = order_conveyor
         st.session_state["solution_output"]    = solution_output
 
-        # ── Show best algorithm immediately after success ──────────────────
-        _best_id    = get_best_run(comparison_summary)
-        _best_label = comparison_summary.loc[
-            comparison_summary["run_id"] == _best_id, "run_label"
-        ].iloc[0]
-        st.info(f"Best performing algorithm: **{_best_label}**  (run_id = {_best_id})")
     except subprocess.CalledProcessError as e:
         st.error(f"Simulation failed: {e}")
 
 # ── Dev convenience: auto-load from /mnt paths if available ──────────────────
-import os, pathlib
 if "comparison_summary" not in st.session_state:
-    _paths = {
-        "comparison_summary":  "Data/comparison/comparison_summary.csv",
-        "order_times":         "Data/comparison/comparison_order_times.csv",
-        "order_conveyor":      "Data/comparison/comparison_order_conveyor.csv",
-        "solution_output":     "Data/comparison/solution_output.csv",
-    }
-    if all(pathlib.Path(p).exists() for p in _paths.values()):
-        for k, p in _paths.items():
-            st.session_state[k] = pd.read_csv(p)
+    if "simulation_ran" in st.session_state and st.session_state["simulation_ran"]:
+        _paths = {
+            "comparison_summary":  "Data/comparison/comparison_summary.csv",
+            "order_times":         "Data/comparison/comparison_order_times.csv",
+            "order_conveyor":      "Data/comparison/comparison_order_conveyor.csv",
+            "solution_output":     "Data/comparison/solution_output.csv",
+        }
+        if all(pathlib.Path(p).exists() for p in _paths.values()):
+            for k, p in _paths.items():
+                st.session_state[k] = pd.read_csv(p)
+    else:
+        st.warning("Simulation data not found. Please run the simulation first.")
 
 # ═════════════════════════════════════════════════════════════════════════════
 # 2. KPI METRICS
 # ═════════════════════════════════════════════════════════════════════════════
 st.subheader("Key Performance Indicators")
 kpi1, kpi2, kpi3 = st.columns(3)
-if "comparison_summary" in st.session_state:
+if "comparison_summary" in st.session_state and not st.session_state["comparison_summary"].empty:
     summary = st.session_state["comparison_summary"]
-    completed = summary[summary["all_orders_completed"] == True]
-    best_avg      = completed["avg_order_time"].min() if not completed.empty else float("nan")
-    best_makespan = summary["total_time"].min()
-    # Avg conveyor utilization for best run:
-    # Each belt is sequential and all items released at t=0, so a belt is active
-    # from t=0 until its last order completes. Utilization = last_completion / makespan.
-    # Average this across all belts that had at least one order.
-    _best_id_kpi = get_best_run(summary)
-    _makespan    = summary.loc[summary["run_id"] == _best_id_kpi, "total_time"].iloc[0]
-    _ot_kpi      = st.session_state["order_times"][
-        st.session_state["order_times"]["run_id"] == _best_id_kpi
-    ]
-    if not _ot_kpi.empty and _makespan > 0:
-        _belt_last = _ot_kpi.groupby("conveyor")["completion_time"].max()
-        avg_conv_util = (_belt_last / _makespan).mean() * 100
+    # Filter for valid runs
+    valid_runs = summary[(summary["flawed_run"] == False) & (summary["all_orders_completed"] == True)]
+
+    if not valid_runs.empty:
+        # Calculate the total sum of avg_order_time and total_time for each run
+        valid_runs["total_metric"] = valid_runs["avg_order_time"] + valid_runs["total_time"]
+        best_run_id = valid_runs.loc[valid_runs["total_metric"].idxmin(), "run_id"]
+
+        # Update metrics for the best run
+        best_avg = valid_runs.loc[valid_runs["run_id"] == best_run_id, "avg_order_time"].iloc[0]
+        best_makespan = valid_runs.loc[valid_runs["run_id"] == best_run_id, "total_time"].iloc[0]
+        best_run_label = valid_runs.loc[valid_runs["run_id"] == best_run_id, "run_label"].iloc[0]
+
+        # Calculate conveyor utilization for the best run
+        _ot_kpi = st.session_state["order_times"][
+            st.session_state["order_times"]["run_id"] == best_run_id
+        ]
+        if not _ot_kpi.empty and best_makespan > 0:
+            _belt_last = _ot_kpi.groupby("conveyor")["completion_time"].max()
+            avg_conv_util = (_belt_last / best_makespan).mean() * 100
+        else:
+            avg_conv_util = float("nan")
+
+        with kpi1:
+            st.metric("Best Avg Order Time", f"{best_avg:.2f}s")
+        with kpi2:
+            st.metric("Best Makespan", f"{best_makespan:.2f}s")
+        with kpi3:
+            st.metric("Avg Conveyor Utilization", f"{avg_conv_util:.1f}%" if not pd.isna(avg_conv_util) else "N/A")
+
+        st.info(f"Recommended algorithm: **{best_run_label}** (Run ID: {best_run_id})")
     else:
-        avg_conv_util = float("nan")
-    with kpi1:
-        st.metric("Best Avg Order Time",  f"{best_avg:.2f}s" if not pd.isna(best_avg) else "N/A")
-    with kpi2:
-        st.metric("Best Makespan",        f"{best_makespan:.2f}s")
-    with kpi3:
-        st.metric("Avg Conveyor Utilization", f"{avg_conv_util:.1f}%" if not pd.isna(avg_conv_util) else "N/A")
+        st.warning("No valid runs available to recommend an algorithm.")
 else:
-    st.warning("Run the simulation to see metrics.")
+    st.warning("Run the simulation to see metrics and algorithm suggestions.")
+    kpi1.empty()
+    kpi2.empty()
+    kpi3.empty()
 
 st.divider()
 
