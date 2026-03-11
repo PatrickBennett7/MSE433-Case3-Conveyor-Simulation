@@ -51,7 +51,8 @@
 
 ### Run Streamlit Dashboard
 1. Run the analytics dashboard
+   
     ```bash
-        streamlit run dashboard.py
-        ```
-2. When redirected to the Streamlit dashboard on your browser, click the `Run Simulation` button to trigger the dashboard. Please wait up to 3 minutes for all graphs to load.
+    streamlit run dashboard.py
+    ```
+3. When redirected to the Streamlit dashboard on your browser, click the `Run Simulation` button to trigger the dashboard. Graphs can take up to 3 minutes to load
