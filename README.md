@@ -48,3 +48,10 @@
     CLEAR_OUTPUTS = True  # True = wipe prior comparison outputs) during run setup
     ```
 3. Run `python run_all.py`
+
+### Run Streamlit Dashboard
+1. Run the analytics dashboard
+    ```bash
+        streamlit run dashboard.py
+        ```
+2. When redirected to the Streamlit dashboard on your browser, click the `Run Simulation` button to trigger the dashboard. Please wait up to 3 minutes for all graphs to load.
