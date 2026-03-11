@@ -1,0 +1,64 @@
+Combo,Metric,n,Mean,Std Dev,CI95 LB,CI95 UB,Min,Max
+algorithm2_tote_overlap | smart_active_need_weighted | critical_first,Makespan,22,218.3523,49.111732,196.5774,240.1272,153.75,337.5
+algorithm2_tote_overlap | smart_active_need_weighted | critical_first,Avg Order Time,22,138.2231,37.639017,121.5349,154.9113,93.4091,239.3182
+algorithm2_tote_overlap | smart_active_need_weighted | critical_first,Throughput Rate,22,0.2047,0.029379,0.1917,0.2178,0.1452,0.2538
+algorithm2_tote_overlap | smart_active_need_weighted | fixed,Makespan,22,220.5682,59.850666,194.0319,247.1045,153.75,442.5
+algorithm2_tote_overlap | smart_active_need_weighted | fixed,Avg Order Time,22,140.749,48.300855,119.3336,162.1644,88.2955,326.25
+algorithm2_tote_overlap | smart_active_need_weighted | fixed,Throughput Rate,22,0.2028,0.034262,0.1876,0.218,0.1107,0.2538
+algorithm2_tote_overlap | smart_active_need | critical_first,Makespan,24,227.1875,63.97419,200.1736,254.2014,153.75,461.25
+algorithm2_tote_overlap | smart_active_need | critical_first,Avg Order Time,24,143.0966,41.144119,125.723,160.4702,95.4545,266.25
+algorithm2_tote_overlap | smart_active_need | critical_first,Throughput Rate,24,0.2002,0.033834,0.1859,0.2145,0.1214,0.2614
+algorithm4_combined_overlap | smart_active_need_weighted | fixed,Makespan,21,231.7857,46.81675,210.475,253.0964,161.25,326.25
+algorithm4_combined_overlap | smart_active_need_weighted | fixed,Avg Order Time,21,152.3864,38.440278,134.8886,169.8842,92.0455,245.1136
+algorithm4_combined_overlap | smart_active_need_weighted | fixed,Throughput Rate,21,0.1924,0.035042,0.1764,0.2083,0.1351,0.2538
+algorithm2_tote_overlap | smart_active_need | fixed,Makespan,23,234.4565,83.216436,198.471,270.442,153.75,510.0
+algorithm2_tote_overlap | smart_active_need | fixed,Avg Order Time,23,149.5998,56.403683,125.209,173.9906,95.7955,326.25
+algorithm2_tote_overlap | smart_active_need | fixed,Throughput Rate,23,0.1993,0.037749,0.183,0.2156,0.1098,0.2469
+algorithm4_combined_overlap | smart_active_need_weighted | critical_first,Makespan,22,237.7841,55.629423,213.1194,262.4488,161.25,367.5
+algorithm4_combined_overlap | smart_active_need_weighted | critical_first,Avg Order Time,22,154.9277,44.874842,135.0313,174.8241,91.0227,266.9318
+algorithm4_combined_overlap | smart_active_need_weighted | critical_first,Throughput Rate,22,0.1902,0.03731,0.1737,0.2067,0.1216,0.2538
+algorithm4_combined_overlap | smart_active_need | critical_first,Makespan,23,250.1087,58.908048,224.6349,275.5824,153.75,371.25
+algorithm4_combined_overlap | smart_active_need | critical_first,Avg Order Time,23,159.8715,42.679843,141.4154,178.3277,95.7955,260.4545
+algorithm4_combined_overlap | smart_active_need | critical_first,Throughput Rate,23,0.182,0.038415,0.1654,0.1986,0.1134,0.2452
+algorithm4_combined_overlap | smart_active_need | fixed,Makespan,22,255.5114,59.4652,229.146,281.8768,161.25,386.25
+algorithm4_combined_overlap | smart_active_need | fixed,Avg Order Time,22,161.312,38.469843,144.2554,178.3686,106.0227,241.7045
+algorithm4_combined_overlap | smart_active_need | fixed,Throughput Rate,22,0.1778,0.040776,0.1598,0.1959,0.1072,0.2452
+algorithm1_load_balance | smart_active_need | fixed,Makespan,18,259.375,73.858034,222.6463,296.1037,157.5,480.0
+algorithm1_load_balance | smart_active_need | fixed,Avg Order Time,18,185.6818,61.853437,154.9228,216.4408,116.5909,383.5227
+algorithm1_load_balance | smart_active_need | fixed,Throughput Rate,18,0.1754,0.035589,0.1577,0.1931,0.0812,0.2216
+algorithm1_load_balance | smart_active_need | critical_first,Makespan,20,264.1875,66.28819,233.1637,295.2113,168.75,431.25
+algorithm1_load_balance | smart_active_need | critical_first,Avg Order Time,20,186.5284,55.131194,160.7262,212.3306,117.9545,343.9773
+algorithm1_load_balance | smart_active_need | critical_first,Throughput Rate,20,0.1747,0.037726,0.1571,0.1924,0.0904,0.2421
+algorithm1_load_balance | smart_active_need_weighted | critical_first,Makespan,20,267.5625,67.623516,235.9137,299.2113,146.25,431.25
+algorithm1_load_balance | smart_active_need_weighted | critical_first,Avg Order Time,20,184.4318,50.032463,161.0159,207.8477,110.1136,312.9545
+algorithm1_load_balance | smart_active_need_weighted | critical_first,Throughput Rate,20,0.173,0.040397,0.1541,0.1919,0.1043,0.2448
+algorithm3_itemtype_overlap | smart_active_need_weighted | fixed,Makespan,18,274.5833,115.38618,217.2031,331.9635,153.75,626.25
+algorithm3_itemtype_overlap | smart_active_need_weighted | fixed,Avg Order Time,18,183.4848,88.181801,139.6331,227.3366,101.25,451.0227
+algorithm3_itemtype_overlap | smart_active_need_weighted | fixed,Throughput Rate,18,0.1736,0.046482,0.1505,0.1967,0.0719,0.2339
+algorithm1_load_balance | smart_active_need_weighted | fixed,Makespan,20,278.4375,78.036002,241.9155,314.9595,157.5,472.5
+algorithm1_load_balance | smart_active_need_weighted | fixed,Avg Order Time,20,194.9318,60.527457,166.6041,223.2595,112.8409,345.6818
+algorithm1_load_balance | smart_active_need_weighted | fixed,Throughput Rate,20,0.167,0.038217,0.1491,0.1849,0.0976,0.2314
+fifo_all | fifo | fixed,Makespan,4,280.3125,98.093148,124.2244,436.4006,180.0,378.75
+fifo_all | fifo | fixed,Avg Order Time,4,169.858,53.153675,85.2786,254.4373,116.25,230.7955
+fifo_all | fifo | fixed,Throughput Rate,4,0.1615,0.065805,0.0568,0.2662,0.0977,0.2199
+algorithm3_itemtype_overlap | smart_active_need_weighted | critical_first,Makespan,20,290.625,164.683458,213.5508,367.6992,153.75,881.25
+algorithm3_itemtype_overlap | smart_active_need_weighted | critical_first,Avg Order Time,20,193.4659,116.766347,138.8176,248.1142,99.8864,603.4091
+algorithm3_itemtype_overlap | smart_active_need_weighted | critical_first,Throughput Rate,20,0.1729,0.050896,0.149,0.1967,0.0511,0.2341
+algorithm3_itemtype_overlap | smart_active_need | critical_first,Makespan,18,298.3333,129.962523,233.7045,362.9622,153.75,671.25
+algorithm3_itemtype_overlap | smart_active_need | critical_first,Avg Order Time,18,206.25,100.49178,156.2766,256.2234,110.7955,494.3182
+algorithm3_itemtype_overlap | smart_active_need | critical_first,Throughput Rate,18,0.1642,0.046274,0.1412,0.1872,0.0685,0.2364
+algorithm1b_stratified_balance | smart_active_need | critical_first,Makespan,15,303.0,143.071224,223.7698,382.2302,168.75,735.0
+algorithm1b_stratified_balance | smart_active_need | critical_first,Avg Order Time,15,203.25,109.551246,142.5825,263.9175,95.7955,533.8636
+algorithm1b_stratified_balance | smart_active_need | critical_first,Throughput Rate,15,0.1527,0.046982,0.1267,0.1788,0.0626,0.2311
+algorithm1b_stratified_balance | smart_active_need | fixed,Makespan,14,305.3571,142.892029,222.8537,387.8605,168.75,720.0
+algorithm1b_stratified_balance | smart_active_need | fixed,Avg Order Time,14,208.6364,111.937804,144.0054,273.2673,96.4773,530.4545
+algorithm1b_stratified_balance | smart_active_need | fixed,Throughput Rate,14,0.1526,0.045718,0.1262,0.179,0.0639,0.2311
+algorithm3_itemtype_overlap | smart_active_need | fixed,Makespan,18,305.625,136.185056,237.9018,373.3482,153.75,682.5
+algorithm3_itemtype_overlap | smart_active_need | fixed,Avg Order Time,18,214.697,103.914335,163.0216,266.3724,112.5,504.5455
+algorithm3_itemtype_overlap | smart_active_need | fixed,Throughput Rate,18,0.1618,0.047825,0.138,0.1856,0.0674,0.2364
+algorithm1b_stratified_balance | smart_active_need_weighted | critical_first,Makespan,14,326.7857,133.734915,249.5695,404.002,168.75,573.75
+algorithm1b_stratified_balance | smart_active_need_weighted | critical_first,Avg Order Time,14,200.0893,77.563831,155.3053,244.8733,95.7955,342.2727
+algorithm1b_stratified_balance | smart_active_need_weighted | critical_first,Throughput Rate,14,0.1504,0.051894,0.1204,0.1803,0.0715,0.2311
+algorithm1b_stratified_balance | smart_active_need_weighted | fixed,Makespan,14,355.1786,152.101352,267.3579,442.9993,168.75,652.5
+algorithm1b_stratified_balance | smart_active_need_weighted | fixed,Avg Order Time,14,225.2192,91.591012,172.3361,278.1022,96.4773,397.8409
+algorithm1b_stratified_balance | smart_active_need_weighted | fixed,Throughput Rate,14,0.1406,0.051661,0.1108,0.1705,0.0667,0.2311
