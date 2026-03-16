@@ -94,8 +94,8 @@ from collections import deque
 
 num_conveyors = 4
 slots_per_conveyor = 2
-conveyor_time = 7.5  # seconds for an item to traverse one conveyor
-scan_interval = conveyor_time / 2  # Scan every half-conveyor interval (3.75 seconds)
+conveyor_time = 12.0  # seconds for an item to traverse one conveyor
+scan_interval = conveyor_time / 2  # Scan every half-conveyor interval (6.0 seconds)
 
 # Create conveyors as lists with 2 slots each (None = empty)
 conveyors = {i: [None, None] for i in range(1, num_conveyors + 1)}

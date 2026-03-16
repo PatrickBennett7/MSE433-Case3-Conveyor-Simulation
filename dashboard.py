@@ -51,9 +51,9 @@ def build_item_events(solution_output: pd.DataFrame,
         n = len(items)
         if n == 0:
             continue
-        # spread release times: last item at completion_time, earlier items spaced by 7.5 s
+        # spread release times: last item at completion_time, earlier items spaced by 12.0 s
         for k, item in enumerate(items):
-            release_time = ct - (n - 1 - k) * 7.5
+            release_time = ct - (n - 1 - k) * 12.0
             rows.append({
                 "order_num": order_idx,
                 "belt": belt,
