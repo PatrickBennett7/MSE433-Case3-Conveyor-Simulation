@@ -27,9 +27,9 @@ KERNEL_NAME = "venv_m3"
 
 # Run configuration, modify as needed
 REPLICATIONS = 25
-CLEAR_OUTPUTS = True   # True = wipe prior comparison outputs (Data/comparison/*.csv) during run setup
-FORCE_REGEN = True     # True = Re-run the raw-data generator
-SRC_COUNT_DICT = {
+CLEAR_OUTPUTS = True        # True = wipe prior comparison outputs (Data/comparison/*.csv) during run setup
+FORCE_REGEN = True          # True = Re-run the raw-data generator
+SRC_COUNT_DICT = {          # Fix the number of orders/totes/itemtypes. Set to empty dict to randomize this.
     "n_orders": str(11),
     "n_totes": str(14),
     "n_itemtypes": str(8),
