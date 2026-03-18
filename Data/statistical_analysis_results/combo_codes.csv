@@ -1,0 +1,22 @@
+Code,Combo
+C1,algorithm2_tote_overlap | smart_active_need_weighted | critical_first
+C2,algorithm2_tote_overlap | smart_active_need_weighted | fixed
+C3,algorithm2_tote_overlap | smart_active_need | critical_first
+C4,algorithm4_combined_overlap | smart_active_need_weighted | fixed
+C5,algorithm2_tote_overlap | smart_active_need | fixed
+C6,algorithm4_combined_overlap | smart_active_need_weighted | critical_first
+C7,algorithm4_combined_overlap | smart_active_need | critical_first
+C8,algorithm4_combined_overlap | smart_active_need | fixed
+C9,algorithm1_load_balance | smart_active_need | fixed
+C10,algorithm1_load_balance | smart_active_need | critical_first
+C11,algorithm1_load_balance | smart_active_need_weighted | critical_first
+C12,algorithm3_itemtype_overlap | smart_active_need_weighted | fixed
+C13,algorithm1_load_balance | smart_active_need_weighted | fixed
+C14,fifo_all | fifo | fixed
+C15,algorithm3_itemtype_overlap | smart_active_need_weighted | critical_first
+C16,algorithm3_itemtype_overlap | smart_active_need | critical_first
+C17,algorithm1b_stratified_balance | smart_active_need | critical_first
+C18,algorithm1b_stratified_balance | smart_active_need | fixed
+C19,algorithm3_itemtype_overlap | smart_active_need | fixed
+C20,algorithm1b_stratified_balance | smart_active_need_weighted | critical_first
+C21,algorithm1b_stratified_balance | smart_active_need_weighted | fixed

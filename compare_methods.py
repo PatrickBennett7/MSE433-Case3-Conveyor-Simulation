@@ -1,7 +1,7 @@
 """
 Compare all combinations of:
   - Order sequencing (algorithm 1, 2, 3, 4 solution files)
-  - Tote sequencing (fifo, smart_active_need, smart_active_need_weighted)
+  - Tote sequencing (smart_active_need, smart_active_need_weighted)
   - Within-tote item order (fixed, critical_first)
 
 Outputs: comparison_summary.csv, comparison_order_times.csv, comparison_order_conveyor.csv
@@ -132,6 +132,7 @@ def run_fifo_notebook_and_load_results(script_dir, data_dir):
                 check=True,
                 capture_output=True,
                 timeout=120,
+                env=os.environ.copy(),
             )
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
             print(f"  Warning: could not run simulation_just_FIFO.py: {e}")
@@ -452,7 +453,7 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
         ('algorithm3_itemtype_overlap', os.path.join(order_sequencing_dir, 'algorithm3_itemtype_overlap_assignment.csv')),
         ('algorithm4_combined_overlap', os.path.join(order_sequencing_dir, 'algorithm4_combined_overlap_assignment.csv')),
     ]
-    tote_algos = ['fifo', 'smart_active_need', 'smart_active_need_weighted']
+    tote_algos = ['smart_active_need', 'smart_active_need_weighted']
     item_algos = ['fixed', 'critical_first']
 
     summary_rows = []

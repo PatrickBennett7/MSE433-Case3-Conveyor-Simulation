@@ -27,8 +27,13 @@ KERNEL_NAME = "venv_m3"
 
 # Run configuration, modify as needed
 REPLICATIONS = 25
-FORCE_REGEN = False     # True = Re-run the raw-data generator
-CLEAR_OUTPUTS = True   # True = wipe prior comparison outputs (Data/comparison/*.csv) during run setup
+CLEAR_OUTPUTS = True        # True = wipe prior comparison outputs (Data/comparison/*.csv) during run setup
+FORCE_REGEN = True          # True = Re-run the raw-data generator
+SRC_COUNT_DICT = {          # Fix the number of orders/totes/itemtypes. Set to empty dict to randomize this.
+    "n_orders": str(11),
+    "n_totes": str(14),
+    "n_itemtypes": str(8),
+}
 
 # Global vars (do not change unless necessary)
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,7 +42,7 @@ DATA_ORDER_SEQUENCING = os.path.join(SCRIPT_DIR, 'Data', 'order_sequencing')
 DATA_COMPARISON = os.path.join(SCRIPT_DIR, 'Data', 'comparison')
 
 
-def run_python_file(base_name: str):
+def run_python_file(env, base_name: str):
     """Run either a .py script or a .ipynb notebook, preferring .py if available.
 
     Args:
@@ -60,6 +65,7 @@ def run_python_file(base_name: str):
                 check=True,
                 capture_output=True,
                 timeout=300,
+                env=env,
             )
             print(f"  Done: {os.path.basename(py_path)}")
             return True
@@ -104,7 +110,7 @@ def run_python_file(base_name: str):
         return False
 
 
-def setup_pipeline(force_regen: bool = False, clear_outputs: bool = True):
+def setup_pipeline(clear_outputs: bool = True):
     """Set up the directory layout and generate required input data.
 
     This is intended to run once per workspace, then multiple replications can
@@ -131,27 +137,39 @@ def setup_pipeline(force_regen: bool = False, clear_outputs: bool = True):
                     os.remove(path)
                 except OSError:
                     pass
+    
+    return True
 
-    # 1. Data generator
-    print("\n[1/2] Data generator (MSE433_M3_data_generator.*) -> Data/raw/")
+
+def run_data_generator(rep_num: int, env, force_regen: bool = False,):
+    """Re-generate raw data for a given replication (seed varies per rep)."""
+    
     existing_raw = all(os.path.isfile(os.path.join(DATA_RAW, fn)) for fn in (
         'order_itemtypes.csv',
         'order_quantities.csv',
         'orders_totes.csv',
     ))
-    if existing_raw and not force_regen:
+    if not force_regen and existing_raw:
         print('  Skipping data generator (raw data already exists). Set FORCE_DATA_GENERATION=1 to re-run.')
     else:
-        if not run_python_file('MSE433_M3_data_generator'):
-            print("  Setup stopped: data generator failed.")
+            
+        print("\n" + "=" * 70)
+        print(f"Data generation for replication {rep_num}")
+        print("=" * 70)
+
+        env['N_ORDERS']    = SRC_COUNT_DICT["n_orders"]
+        env['N_TOTES']     = SRC_COUNT_DICT["n_totes"]
+        env['N_ITEMTYPES'] = SRC_COUNT_DICT["n_itemtypes"]
+
+        print("\n[1/2] Data generator (MSE433_M3_data_generator.*) -> Data/raw/")
+        if not run_python_file(env, 'MSE433_M3_data_generator'):
+            print("  Data generation failed.")
             return False
-
-    # 2. Order sequencing
+    
     print("\n[2/2] Order sequencing (order_sequence.*) -> Data/order_sequencing/")
-    if not run_python_file('order_sequence'):
-        print("  Setup stopped: order sequencing failed.")
+    if not run_python_file(env, 'order_sequence'):
+        print("  Order sequencing failed.")
         return False
-
     return True
 
 
@@ -161,22 +179,21 @@ def run_replication(rep_num: int, env):
     print(f"Replication {rep_num}: FIFO simulation -> Comparison")
     print("=" * 70)
 
-    env['REPLICATION_NUM'] = str(rep_num)
     env['DATA_RAW_DIR'] = DATA_RAW
     env['DATA_ORDER_SEQUENCING_DIR'] = DATA_ORDER_SEQUENCING
     env['DATA_COMPARISON_DIR'] = DATA_COMPARISON
 
-    # 3. FIFO simulation
-    print("\n[1/2] FIFO simulation (simulation_just_FIFO.*) -> Data/comparison/")
-    t0 = time.perf_counter()
-    fifo_ok = run_python_file('simulation_just_FIFO')
-    t1 = time.perf_counter()
-    print(f"  Step time: {t1 - t0:.3f}s")
-    if not fifo_ok:
-        print("  Warning: FIFO simulation failed; comparison will skip run_id=1.")
+    # # 3. FIFO simulation
+    # print("\n[1/2] FIFO simulation (simulation_just_FIFO.*) -> Data/comparison/")
+    # t0 = time.perf_counter()
+    # fifo_ok = run_python_file(env, 'simulation_just_FIFO')
+    # t1 = time.perf_counter()
+    # print(f"  Step time: {t1 - t0:.3f}s")
+    # if not fifo_ok:
+    #     print("  Warning: FIFO simulation failed; comparison will skip run_id=1.")
 
     # 4. Comparison
-    print("\n[2/2] Comparison (compare_methods.py) -> Data/comparison/")
+    print("\n[1/1] Comparison (compare_methods.py) -> Data/comparison/")
     compare_script = os.path.join(SCRIPT_DIR, 'compare_methods.py')
     t0 = time.perf_counter()
     try:
@@ -205,14 +222,17 @@ def run_replication(rep_num: int, env):
 
 
 if __name__ == '__main__':
-
-    if not setup_pipeline(force_regen=FORCE_REGEN, clear_outputs=CLEAR_OUTPUTS):
-        sys.exit(1)
-
     env = os.environ.copy()
     env['KERNEL'] = KERNEL_NAME
 
+    if not setup_pipeline(clear_outputs=CLEAR_OUTPUTS):
+        sys.exit(1)
+    
     for rep in range(1, REPLICATIONS + 1):
+        env['REPLICATION_NUM'] = str(rep)
+        if not run_data_generator(rep, env=env, force_regen=FORCE_REGEN):
+            sys.exit(1)
+
         if not run_replication(rep, env):
             sys.exit(1)
     sys.exit(0)
