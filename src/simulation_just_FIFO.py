@@ -10,10 +10,11 @@ import sys
 import pandas as pd
 
 # ---------------------------------------------------------------------------
-# Import the shared simulation engine from compare_methods.py
+# Import the shared simulation engine from src/compare_methods.py
 # ---------------------------------------------------------------------------
-script_dir = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, script_dir)
+
 from compare_methods import load_data, run_simulation, SHAPE_COLS
 
 # ---------------------------------------------------------------------------
