@@ -6,7 +6,7 @@ Compare all combinations of:
 
 Outputs: comparison_summary.csv, comparison_order_times.csv, comparison_order_conveyor.csv
 
-Run 1 is the FIFO baseline: compare_methods executes simulation_just_FIFO.ipynb once
+Run 1 is the FIFO baseline: compare_methods executes src/simulation_just_FIFO.ipynb once
 and merges its outputs from the comparison dir into the comparison CSVs. All other
 runs (2+) use the algorithm solution files and run_simulation().
 
@@ -16,7 +16,7 @@ Folder layout (see run_all.py):
   Data/comparison/            -- FIFO run results + comparison_summary, comparison_order_times, comparison_order_conveyor
 
 Requirement: Algorithm solution CSVs must be generated from the same Data (run
-order_sequence.ipynb first) so solution rows match orders by shape.
+src/order_sequence.ipynb first) so solution rows match orders by shape.
 
 Runs that do not complete all orders (items stuck on belt, no space to load more)
 are reported as flawed_run=True: that indicates a flaw in that algorithm combination.
@@ -55,7 +55,7 @@ else:
     SHAPE_COLS = DEFAULT_SHAPE_COLS + [f'type_{i}' for i in range(len(DEFAULT_SHAPE_COLS), TYPE_COUNT)]
 
 # ---------------------------------------------------------------------------
-# Data loading (same as simulate_conveyor.ipynb)
+# Data loading (same as src/simulate_conveyor.ipynb)
 # ---------------------------------------------------------------------------
 def load_data(data_dir='Data'):
     items_raw = pd.read_csv(os.path.join(data_dir, 'order_itemtypes.csv'), header=None)
@@ -113,18 +113,18 @@ def _order_to_shape_tuple(order):
 
 
 # ---------------------------------------------------------------------------
-# Run simulation_just_FIFO.ipynb once and read its result CSVs for run_id=1
+# Run src/simulation_just_FIFO.ipynb once and read its result CSVs for run_id=1
 # ---------------------------------------------------------------------------
 def run_fifo_notebook_and_load_results(script_dir, data_dir):
     """Run the FIFO simulation and return (summary_row, order_times, order_conveyor) or (None, None, None).
 
     Prefer a Python script (.py) if present; otherwise fall back to executing the notebook (.ipynb).
     """
-    py_path = os.path.join(script_dir, 'simulation_just_FIFO.py')
-    nb_path = os.path.join(script_dir, 'simulation_just_FIFO.ipynb')
+    py_path = os.path.join(script_dir, 'src/simulation_just_FIFO.py')
+    nb_path = os.path.join(script_dir, 'src/simulation_just_FIFO.ipynb')
 
     if os.path.isfile(py_path):
-        print("  Running simulation_just_FIFO.py")
+        print("  Running src/simulation_just_FIFO.py")
         try:
             subprocess.run(
                 [sys.executable, py_path],
@@ -135,10 +135,10 @@ def run_fifo_notebook_and_load_results(script_dir, data_dir):
                 env=os.environ.copy(),
             )
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
-            print(f"  Warning: could not run simulation_just_FIFO.py: {e}")
+            print(f"  Warning: could not run src/simulation_just_FIFO.py: {e}")
             return None, None, None
     elif os.path.isfile(nb_path):
-        print("  Running simulation_just_FIFO.ipynb")
+        print("  Running src/simulation_just_FIFO.ipynb")
         try:
             subprocess.run(
                 [sys.executable, '-m', 'jupyter', 'nbconvert', '--execute', '--to', 'notebook', '--inplace', "--ExecutePreprocessor.kernel_name=venv_m3", nb_path],
@@ -148,7 +148,7 @@ def run_fifo_notebook_and_load_results(script_dir, data_dir):
                 timeout=120,
             )
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired) as e:
-            print(f"  Warning: could not run simulation_just_FIFO.ipynb: {e}")
+            print(f"  Warning: could not run src/simulation_just_FIFO.ipynb: {e}")
             return None, None, None
     else:
         return None, None, None
@@ -212,7 +212,7 @@ def run_simulation(orders_queue, totes_queue, solution_df, tote_algo, within_tot
     total_matched = sum(len(conveyor_order_queues[c]) for c in range(1, num_conveyors + 1))
     if total_matched < len(orders_queue) and verbose:
         import warnings
-        warnings.warn(f"Solution matched only {total_matched}/{len(orders_queue)} orders; regenerate algorithm CSVs from order_sequence.ipynb with current Data.")
+        warnings.warn(f"Solution matched only {total_matched}/{len(orders_queue)} orders; regenerate algorithm CSVs from src/order_sequence.py with current Data.")
 
     # order_num -> conv_num for reporting (derived from queues we just built)
     order_assignment = {}
@@ -463,8 +463,8 @@ def main(raw_data_dir='Data/raw', order_sequencing_dir='Data/order_sequencing', 
     run_id = 0
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Run simulation_just_FIFO.ipynb once and merge its results as run_id=1
-    print("Run 1: simulation_just_FIFO.py/.ipynb (FIFO orders, totes, items)")
+    # Run src/simulation_just_FIFO.ipynb once and merge its results as run_id=1
+    print("Run 1: src/simulation_just_FIFO.py or .ipynb (FIFO orders, totes, items)")
     summary_row, fifo_order_times, fifo_order_conveyor = run_fifo_notebook_and_load_results(script_dir, comparison_dir)
     if summary_row is not None:
         run_id = 1

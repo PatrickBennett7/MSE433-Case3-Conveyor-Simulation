@@ -26,7 +26,7 @@ import subprocess
 KERNEL_NAME = "venv_m3"
 
 # Run configuration, modify as needed
-REPLICATIONS = 25
+REPLICATIONS = 1
 CLEAR_OUTPUTS = True        # True = wipe prior comparison outputs (Data/comparison/*.csv) during run setup
 FORCE_REGEN = True          # True = Re-run the raw-data generator
 SRC_COUNT_DICT = {          # Fix the number of orders/totes/itemtypes. Set to empty dict to randomize this.
@@ -161,13 +161,13 @@ def run_data_generator(rep_num: int, env, force_regen: bool = False,):
         env['N_TOTES']     = SRC_COUNT_DICT["n_totes"]
         env['N_ITEMTYPES'] = SRC_COUNT_DICT["n_itemtypes"]
 
-        print("\n[1/2] Data generator (MSE433_M3_data_generator.*) -> Data/raw/")
-        if not run_python_file(env, 'MSE433_M3_data_generator'):
+        print("\n[1/2] Data generator (src/MSE433_M3_data_generator.*) -> Data/raw/")
+        if not run_python_file(env, 'src/MSE433_M3_data_generator'):
             print("  Data generation failed.")
             return False
     
-    print("\n[2/2] Order sequencing (order_sequence.*) -> Data/order_sequencing/")
-    if not run_python_file(env, 'order_sequence'):
+    print("\n[2/2] Order sequencing (src/order_sequence.*) -> Data/order_sequencing/")
+    if not run_python_file(env, 'src/order_sequence'):
         print("  Order sequencing failed.")
         return False
     return True
@@ -193,8 +193,8 @@ def run_replication(rep_num: int, env):
     #     print("  Warning: FIFO simulation failed; comparison will skip run_id=1.")
 
     # 4. Comparison
-    print("\n[1/1] Comparison (compare_methods.py) -> Data/comparison/")
-    compare_script = os.path.join(SCRIPT_DIR, 'compare_methods.py')
+    print("\n[1/1] Comparison (src/compare_methods.py) -> Data/comparison/")
+    compare_script = os.path.join(SCRIPT_DIR, 'src/compare_methods.py')
     t0 = time.perf_counter()
     try:
         r = subprocess.run(
