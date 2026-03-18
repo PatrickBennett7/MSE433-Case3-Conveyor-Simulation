@@ -26,7 +26,7 @@ import subprocess
 KERNEL_NAME = "venv_m3"
 
 # Run configuration, modify as needed
-REPLICATIONS = 1
+REPLICATIONS = 25
 CLEAR_OUTPUTS = True        # True = wipe prior comparison outputs (Data/comparison/*.csv) during run setup
 FORCE_REGEN = True          # True = Re-run the raw-data generator
 SRC_COUNT_DICT = {          # Fix the number of orders/totes/itemtypes. Set to empty dict to randomize this.
