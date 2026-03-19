@@ -4,15 +4,21 @@ This project simulates a four-belt conveyor sortation system for e-commerce orde
 
 ## Project structure
 
-| Path                       | Description                                                                                                                                                          |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Root**                   | `run_all.py` (main pipeline), `dashboard.py` (Streamlit analytics), `statistical_analysis.ipynb` (comparison analysis)                                               |
-| **src/**                   | `MSE433_M3_data_generator.py`, `order_sequence.py`, `simulation_just_FIFO.py`, `compare_methods.py`. See `src/README_order_sequence.md` for order-algorithm details. |
-| **Data/raw/**              | Generated CSVs: `order_itemtypes.csv`, `order_quantities.csv`, `orders_totes.csv`                                                                                    |
-| **Data/order_sequencing/** | Generated order-assignment CSVs (one per algorithm)                                                                                                                  |
-| **Data/comparison/**       | Outputs: `comparison_summary.csv`, `comparison_order_times.csv`, `comparison_order_conveyor.csv`                                                                     |
+### Folders
 
-**Pipeline flow:** Data generator → Order sequencing → Comparison. Run `run_all.py` from the repo root; it uses the `src/` scripts and the `Data/` paths above.
+- **Data/raw/** — Input data for the rest of the pipeline. Contains `order_itemtypes.csv`, `order_quantities.csv`, `orders_totes.csv`. Created by the data generator; do not edit by hand unless you know the expected format.
+- **Data/order_sequencing/** — Order-to-conveyor assignments (one CSV per algorithm: load balance, stratified, tote overlap, item-type overlap, combined). Created by the order-sequencing step; read by the comparison step.
+- **Data/comparison/** — Final simulation results. Contains `comparison_summary.csv`, `comparison_order_times.csv`, `comparison_order_conveyor.csv`. Created by the comparison step; read by the dashboard and the statistical analysis notebook.
+
+### What runs what
+
+| You run | What happens |
+| -------- | ------------ |
+| **`python run_all.py`** (from repo root) | 1) Creates the three `Data/` folders. 2) For each replication: runs **src/MSE433_M3_data_generator.py** (writes `Data/raw/`), then **src/order_sequence.py** (reads `Data/raw/`, writes `Data/order_sequencing/`), then **src/compare_methods.py** (reads `Data/raw/` and `Data/order_sequencing/`, runs the simulation for every order×tote×item heuristic combination, appends results to `Data/comparison/`). Run this first to generate all data. |
+| **`streamlit run dashboard.py`** | Starts a web dashboard that reads `Data/comparison/*.csv` and shows metrics and charts. Requires that `run_all.py` has already been run so that the comparison files exist. |
+| **`statistical_analysis.ipynb`** | Jupyter notebook that reads `Data/comparison/comparison_summary.csv` (and related files) to run statistical analysis. Run `run_all.py` first. |
+
+You do not need to run the `src/` scripts by hand; `run_all.py` calls them. For details on the order-sequencing algorithms, see **src/README_order_sequence.md**.
 
 ## Setup
 
